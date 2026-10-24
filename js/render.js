@@ -161,13 +161,22 @@ function drawOffice() {
 function drawPlayer() {
   const p = player;
   const img = p.form === 'small' ? art.player_small : art.player_super;
-  const x = Math.round(p.x), y = Math.round(p.y);
+  const x = Math.round(p.x);
+  const y = Math.round(p.y);
 
   if (img) {
     ctx.save();
-    ctx.translate(x, y);
-    if (p.facing < 0) ctx.scale(-1, 1);
-    ctx.drawImage(img, -Math.round(img.width / 2), -img.height);
+
+    if (p.superFly) {
+      ctx.translate(x, y - img.height / 2);
+      ctx.rotate(p.facing > 0 ? Math.PI / 2 : -Math.PI / 2);
+      ctx.drawImage(img, -img.width / 2, -img.height / 2);
+    } else {
+      ctx.translate(x, y);
+      if (p.facing < 0) ctx.scale(-1, 1);
+      ctx.drawImage(img, -Math.round(img.width / 2), -img.height);
+    }
+
     ctx.restore();
   } else if (p.form === 'small') {
     ctx.fillStyle = '#2b2b3a';
@@ -196,19 +205,27 @@ function drawPlayer() {
   }
 
   if (p.beam) {
-    const ox = p.x, oy = p.y + EYE_Y;
+    const ox = p.x;
+    const oy = p.y + EYE_Y;
     ctx.lineCap = 'butt';
     ctx.strokeStyle = '#ff3b3b';
     ctx.lineWidth = 4;
-    ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(p.bx, p.by); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(ox, oy);
+    ctx.lineTo(p.bx, p.by);
+    ctx.stroke();
     ctx.strokeStyle = '#fff';
     ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(p.bx, p.by); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(ox, oy);
+    ctx.lineTo(p.bx, p.by);
+    ctx.stroke();
     ctx.fillStyle = '#ffd23f';
     const r = 3 + Math.random() * 2;
     ctx.fillRect(Math.round(p.bx - r), Math.round(p.by - r), r * 2, r * 2);
   }
 }
+
 
 function drawDebris() {
   for (const d of debris) {

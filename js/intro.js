@@ -16,18 +16,19 @@ async function runIntro() {
   shake(3, 1000);
   await grow;
   shake(7, 500);
+    await say('', "THERES A MONSTER OUT THERE!!!AND METEORS ARE FALLING!!!");
 
   await say('', "IM JUST A LITTLE GUY!!! WHAT CAN I DO?!");
   await say(DOC_NAME, '...Are you?');
 
-  // costume change
+
   await tween(flash, { a: 1 }, 250);
   player.form = 'super';
   shake(5, 300);
   await tween(flash, { a: 0 }, 500);
   await say('', '...Huh. Not so little anymore.');
 
-  // out through the window
+
   await tween(player, { x: WINDOW_CENTER.x, y: WINDOW_CENTER.y + 20 }, 500, 'inExpo');
   burst(WINDOW_CENTER.x, WINDOW_CENTER.y, '#bfe3ff', 40, 220, 160);
   await tween(flash, { a: 1 }, 100);
@@ -62,7 +63,7 @@ async function meteorBit() {
     tween(cityMeteor, { x: cityMeteor.x - 70, y: cityMeteor.y + 10 }, 350),
   ]);
 
-  // throw it as far as possible
+
   await tween(cityMeteor, { x: 2600, y: -900, s: 0.1 }, 1400, 'inQuad');
   cityMeteor = null;
   shake(8, 600);

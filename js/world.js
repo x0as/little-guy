@@ -1,16 +1,16 @@
 const WORLD_W = 3000;
-const GROUND = 300;   // top of the sidewalk
-const ROAD = 346;     // where cars sit
+const GROUND = 300;
+const ROAD = 346;
 
-const props = [];          // buildings + cars, anything the laser can break
-const farBuildings = [];   // background silhouettes, not breakable
+const props = [];
+const farBuildings = [];
 const debris = [];
 let kills = 0;
 
-// seeded random so the city is the same every time you test
 function mulberry(seed) {
   return function () {
-    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    seed |= 0;
+    seed = seed + 0x6D2B79F5 | 0;
     let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
     t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
     return ((t ^ t >>> 14) >>> 0) / 4294967296;
@@ -26,7 +26,8 @@ function buildCity() {
 
   let x = -50;
   while (x < WORLD_W + 50) {
-    const w = range(60, 120), h = range(110, 270);
+    const w = range(60, 120);
+    const h = range(110, 270);
     farBuildings.push({ x, y: GROUND - h, w, h });
     x += w + range(0, 12);
   }
@@ -36,28 +37,79 @@ function buildCity() {
     const img = pickArt('building_', 6);
     const w = img ? img.width : range(54, 110);
     const h = img ? img.height : range(90, 230);
+
     props.push({
-      kind: 'building', x: x + w / 2, y: GROUND, w, h, img,
-      color: pick(buildingColors), hp: 1.2 + h / 150,
-      seed: Math.floor(r() * 1e9), flash: 0, shake: 0,
+      kind: 'building',
+      x: x + w / 2,
+      y: GROUND,
+      w,
+      h,
+      img,
+      color: pick(buildingColors),
+      hp: 1.2 + h / 150,
+      seed: Math.floor(r() * 1e9),
+      flash: 0,
+      shake: 0,
     });
+
     x += w + range(6, 30);
   }
 
+  const carCounts = new Map();
   x = 120;
+
   while (x < WORLD_W - 60) {
-    const img = pickArt('car_', 4);
-    props.push({
-      kind: 'car', x, y: ROAD, w: img ? img.width : 30, h: img ? img.height : 13, img,
-      color: pick(carColors), hp: 0.4, seed: 0, flash: 0, shake: 0,
-    });
-    x += range(90, 220);
+    let img = null;
+    let carKey = null;
+
+    for (let attempt = 0; attempt < 12; attempt++) {
+      const candidate = pickArt('car_', 3);
+      if (!candidate) break;
+
+      const key = candidate.src || candidate.currentSrc || candidate;
+      const count = carCounts.get(key) || 0;
+
+      if (count < 2) {
+        img = candidate;
+        carKey = key;
+        break;
+      }
+    }
+
+    if (img) {
+      carCounts.set(carKey, (carCounts.get(carKey) || 0) + 1);
+
+      const scale = 0.7;
+
+      props.push({
+        kind: 'car',
+        x,
+        y: ROAD,
+        w: img.width * scale,
+        h: img.height * scale,
+        img,
+        color: pick(carColors),
+        hp: 0.4,
+        seed: 0,
+        flash: 0,
+        shake: 0,
+      });
+    }
+
+    x += range(240, 420);
   }
 }
 
 function propAt(px, py) {
   for (const p of props) {
-    if (px >= p.x - p.w / 2 && px <= p.x + p.w / 2 && py >= p.y - p.h && py <= p.y) return p;
+    if (
+      px >= p.x - p.w / 2 &&
+      px <= p.x + p.w / 2 &&
+      py >= p.y - p.h &&
+      py <= p.y
+    ) {
+      return p;
+    }
   }
   return null;
 }
@@ -84,7 +136,8 @@ function burst(x, y, color, count, spread = 160, up = 120) {
       vx: (Math.random() * 2 - 1) * spread,
       vy: -up * 1.5 + Math.random() * up * 1.8,
       s: 2 + Math.floor(Math.random() * 4),
-      life: 0.9, color,
+      life: 0.9,
+      color,
     });
   }
 }
@@ -104,7 +157,10 @@ function updateProps(dt) {
   for (const p of props) {
     if (p.flash > 0) {
       p.flash -= dt;
-      if (p.flash <= 0) { p.flash = 0; p.shake = 0; }
+      if (p.flash <= 0) {
+        p.flash = 0;
+        p.shake = 0;
+      }
     }
   }
 }

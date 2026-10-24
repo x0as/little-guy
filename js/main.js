@@ -6,7 +6,7 @@ const cam = { x: 0, y: 0, follow: false, shake: 0, shakeDecay: 0 };
 const flash = { a: 0 };
 const keys = {};
 const mouse = { x: 320, y: 180, down: false };
-let scene = 'office';   // 'office' (intro room) or 'city'
+let scene = 'office';
 
 function shake(amount, ms) {
   cam.shake = amount;
@@ -39,10 +39,12 @@ function update(dt) {
     cam.x += (t.x - cam.x) * k;
     cam.y += (t.y - cam.y) * k;
   }
+
   cam.shake = Math.max(0, cam.shake - cam.shakeDecay * dt);
 }
 
 let last = performance.now();
+
 function loop(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
@@ -51,29 +53,50 @@ function loop(now) {
   requestAnimationFrame(loop);
 }
 
-// input
 addEventListener('keydown', e => {
   keys[e.code] = true;
-  if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault();
-  if (!e.repeat && (e.code === 'Space' || e.code === 'Enter')) dialogueInput();
+  keys.Shift = e.shiftKey || e.code === 'ShiftLeft' || e.code === 'ShiftRight';
+
+  if (e.code === 'Space' || e.code.startsWith('Arrow')) {
+    e.preventDefault();
+  }
+
+  if (!e.repeat && (e.code === 'Space' || e.code === 'Enter')) {
+    dialogueInput();
+  }
 });
-addEventListener('keyup', e => { keys[e.code] = false; });
-addEventListener('blur', () => { for (const k in keys) keys[k] = false; mouse.down = false; });
+
+addEventListener('keyup', e => {
+  keys[e.code] = false;
+  keys.Shift = e.shiftKey;
+});
+
+addEventListener('blur', () => {
+  for (const k in keys) keys[k] = false;
+  mouse.down = false;
+});
 
 canvas.addEventListener('mousemove', e => {
   const r = canvas.getBoundingClientRect();
   mouse.x = (e.clientX - r.left) / r.width * 640;
   mouse.y = (e.clientY - r.top) / r.height * 360;
 });
+
 canvas.addEventListener('mousedown', () => {
   mouse.down = true;
   dialogueInput();
 });
-addEventListener('mouseup', () => { mouse.down = false; });
 
-// add ?skip to the url to jump past the intro while testing
+addEventListener('mouseup', () => {
+  mouse.down = false;
+});
+
 loadArt().then(() => {
   buildCity();
-  if (location.search.includes('skip')) skipIntro(); else runIntro();
+  if (location.search.includes('skip')) {
+    skipIntro();
+  } else {
+    runIntro();
+  }
   requestAnimationFrame(loop);
 });
