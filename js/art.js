@@ -4,7 +4,7 @@ const artNames = [
   'player_small', 'player_super', 'meteor', 'office_bg', 'doc',
   'building_1', 'building_2', 'building_3', 'building_4', 'building_5', 'building_6',
   'car_1', 'car_2', 'car_3', 'car_4',
-  'alien', 'mothership', 'ufo',
+  'alien', 'mothership', 'ufo', 'military', 'heli',
 ];
 
 function loadArt() {

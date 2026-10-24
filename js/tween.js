@@ -1,5 +1,3 @@
-
-
 const ease = {
   linear: t => t,
   inQuad: t => t * t,
@@ -9,7 +7,6 @@ const ease = {
 };
 
 const tweens = [];
-
 
 function tween(obj, to, ms, easing = 'linear') {
   return new Promise(resolve => {

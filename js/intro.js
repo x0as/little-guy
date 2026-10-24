@@ -33,12 +33,10 @@ async function runIntro() {
   await meteorBit();
   enterFree();
 
-  // Doc gives directions while player is now in control
   await wait(400);
-  await say(DOC_NAME, 'The mothership is to the RIGHT — fly toward it!');
+  await say(DOC_NAME, 'The mothership is to the RIGHT \u2014 fly toward it!');
   await say(DOC_NAME, 'Its scouts are already swarming the city. Go, go, GO!');
 
-  // Doc walks off screen to the left
   await tween(streetDoc, { x: -80 }, 1400, 'inOutQuad');
 }
 
