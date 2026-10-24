@@ -2,7 +2,6 @@ const FONT = '"PixelFont", monospace';
 
 const dlg = { active: false, who: '', lines: [], shown: 0, total: 0, typing: false, resolve: null };
 
-// await say('DOC', '...Are you?')   (space / enter / click to skip typing, then to continue)
 function say(who, text) {
   return new Promise(resolve => {
     ctx.font = '12px ' + FONT;

@@ -1,4 +1,4 @@
-const canvas = document.getElementById('c');
+﻿const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
 ctx.imageSmoothingEnabled = false;
 
@@ -6,7 +6,8 @@ const cam = { x: 0, y: 0, follow: false, shake: 0, shakeDecay: 0 };
 const flash = { a: 0 };
 const keys = {};
 const mouse = { x: 320, y: 180, down: false };
-let scene = 'office';
+let scene = 'city';
+let gameOver = false;
 
 function shake(amount, ms) {
   cam.shake = amount;
@@ -33,6 +34,15 @@ function update(dt) {
   updateDebris(dt);
   updateDialogue(dt);
 
+  if (!gameOver && player.control) {
+    updateInvasion(dt);
+    if (player.hp <= 0 || cityHealth <= 0) {
+      gameOver = true;
+      player.control = false;
+      player.beam = false;
+    }
+  }
+
   if (cam.follow) {
     const t = camTarget();
     const k = 1 - Math.exp(-7 * dt);
@@ -57,13 +67,8 @@ addEventListener('keydown', e => {
   keys[e.code] = true;
   keys.Shift = e.shiftKey || e.code === 'ShiftLeft' || e.code === 'ShiftRight';
 
-  if (e.code === 'Space' || e.code.startsWith('Arrow')) {
-    e.preventDefault();
-  }
-
-  if (!e.repeat && (e.code === 'Space' || e.code === 'Enter')) {
-    dialogueInput();
-  }
+  if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault();
+  if (!e.repeat && (e.code === 'Space' || e.code === 'Enter')) dialogueInput();
 });
 
 addEventListener('keyup', e => {
@@ -93,10 +98,7 @@ addEventListener('mouseup', () => {
 
 loadArt().then(() => {
   buildCity();
-  if (location.search.includes('skip')) {
-    skipIntro();
-  } else {
-    runIntro();
-  }
+  if (location.search.includes('skip')) skipIntro();
+  else runIntro();
   requestAnimationFrame(loop);
 });

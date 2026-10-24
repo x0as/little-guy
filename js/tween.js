@@ -1,4 +1,4 @@
-// tiny tween helper so the cutscene can read top to bottom with await
+
 
 const ease = {
   linear: t => t,
@@ -10,7 +10,7 @@ const ease = {
 
 const tweens = [];
 
-// tween(obj, {x: 10, y: 20}, 500, 'inQuad') -> promise that resolves when done
+
 function tween(obj, to, ms, easing = 'linear') {
   return new Promise(resolve => {
     const from = {};

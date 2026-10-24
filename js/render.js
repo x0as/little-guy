@@ -5,12 +5,15 @@ const TRAIL = { x: 0.35 / Math.hypot(0.35, 1), y: -1 / Math.hypot(0.35, 1) };
 
 let skyGrad = null;
 
+
+
 function render() {
   if (!skyGrad) {
     skyGrad = ctx.createLinearGradient(0, 0, 0, 360);
     skyGrad.addColorStop(0, '#3a5a9b');
     skyGrad.addColorStop(1, '#f2b880');
   }
+
   ctx.fillStyle = skyGrad;
   ctx.fillRect(0, 0, 640, 360);
 
@@ -18,27 +21,174 @@ function render() {
   const sy = (Math.random() - 0.5) * 2 * cam.shake;
   ctx.save();
   ctx.translate(Math.round(-cam.x + sx), Math.round(-cam.y + sy));
-  if (scene === 'office') drawOffice(); else drawCity();
+
+  if (scene === 'office') drawOffice();
+  else drawCity();
+
+  drawEnemies();
+  drawEnemyProjectiles();
   drawPlayer();
   drawDebris();
+  if (mothership) drawMothership();
   ctx.restore();
 
-  if (player.control) {
-    ctx.font = '11px ' + FONT;
-    ctx.textBaseline = 'top';
-    const msg = 'WASD / arrows: fly   SPACE or click: laser   Destroyed: ' + kills;
-    ctx.fillStyle = '#000';
-    ctx.fillText(msg, 9, 7);
-    ctx.fillStyle = '#fff';
-    ctx.fillText(msg, 8, 6);
-  }
+
+
+  drawHealthUI();
   drawDialogue();
+
   if (flash.a > 0) {
     ctx.fillStyle = 'rgba(255,255,255,' + flash.a + ')';
     ctx.fillRect(0, 0, 640, 360);
   }
 }
 
+function drawEnemies() {
+  for (const e of enemies) {
+    if (e.kind === 'ufo') {
+      drawEnemySprite(e, art.ufo, '#63a8cf', '#67f4ff');
+    } else {
+      // Aliens drawn at half logical size to look tiny on the ground
+      const small = { ...e, w: e.w * 0.8, h: e.h * 0.8 };
+      drawEnemySprite(small, art.alien, '#8ac75a', '#b8ff62');
+    }
+  }
+}
+
+// Drawn in world-space (inside ctx.translate block)
+function drawMothership() {
+  const img = art.mothership;
+  if (img) {
+    ctx.drawImage(img, Math.round(mothership.x - mothership.w / 2), Math.round(mothership.y), mothership.w, mothership.h);
+  } else {
+    ctx.save();
+    // Main hull — dark purple ellipse
+    const cx = mothership.x - mothership.w * 0.1; // shift visible centre leftward
+    const cy = mothership.y + mothership.h * 0.35;
+    ctx.fillStyle = '#1e0a30';
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, mothership.w * 0.46, mothership.h * 0.24, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Glowing dome on top
+    ctx.fillStyle = '#3a1055';
+    ctx.beginPath();
+    ctx.ellipse(cx, cy - mothership.h * 0.1, mothership.w * 0.28, mothership.h * 0.22, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Pulsing underside beam windows
+    const t = performance.now() / 600;
+    const lightColors = ['#ff00ff', '#cc00ff', '#ff44ff', '#aa00ee', '#ff00cc'];
+    for (let i = 0; i < 6; i++) {
+      const lx = cx - mothership.w * 0.32 + i * mothership.w * 0.13;
+      const ly = cy + mothership.h * 0.18;
+      const pulse = 0.6 + 0.4 * Math.sin(t + i * 1.1);
+      ctx.fillStyle = lightColors[i % lightColors.length];
+      ctx.globalAlpha = pulse;
+      ctx.shadowColor = ctx.fillStyle;
+      ctx.shadowBlur = 20;
+      ctx.beginPath();
+      ctx.ellipse(lx, ly, 12, 7, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
+    ctx.restore();
+  }
+}
+
+function drawEnemySprite(e, img, fallback, glow) {
+  if (img) {
+    // Draw at logical e.w × e.h so size is controlled by data, not sprite sheet
+    ctx.drawImage(img, Math.round(e.x - e.w / 2), Math.round(e.y - e.h / 2), e.w, e.h);
+    return;
+  }
+
+  ctx.save();
+  ctx.fillStyle = fallback;
+  ctx.beginPath();
+  ctx.ellipse(e.x, e.y, e.w / 2, e.h / 2, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.ellipse(e.x, e.y + e.h * 0.15, e.w * 0.2, e.h * 0.18, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawEnemyProjectiles() {
+  for (const p of enemyProjectiles) {
+    ctx.fillStyle = p.kind === 'boss' ? '#ff6b3d' :
+      p.kind === 'ufo' ? '#67f4ff' : '#c4ff62';
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.kind === 'boss' ? 7 : 5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawHealthUI() {
+  if (!player.control && !gameOver) return;
+
+  // ─ Player & City bars — top-left panel ────────────────────────────
+  drawBar(10, 18, 130, 9, player.hp / player.maxHp, '#4be36b', 'PLAYER HP');
+  drawBar(10, 38, 130, 9, cityHealth / CITY_MAX_HEALTH, '#55b6ff', 'CITY HP');
+
+  // ─ Boss bar — top-centre ──────────────────────────────────
+  if (mothership) {
+    drawBar(220, 10, 200, 11, mothership.hp / mothership.maxHp,
+      '#f04d59', 'WAVE ' + invasionWave + '  ■ MOTHERSHIP');
+  } else if (invasionWave > 0 && !gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(220, 6, 200, 18);
+    ctx.fillStyle = '#fff';
+    ctx.font = '10px ' + FONT;
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'center';
+    ctx.fillText('WAVE ' + invasionWave + ' — CLEAR!', 320, 15);
+    ctx.textAlign = 'left';
+  }
+
+  // ─ Kill counter — top-right ─────────────────────────────────
+  ctx.fillStyle = 'rgba(0,0,0,0.45)';
+  ctx.fillRect(555, 6, 78, 16);
+  ctx.font = '10px ' + FONT;
+  ctx.textBaseline = 'top';
+  ctx.fillStyle = '#ffd23f';
+  ctx.fillText('\u2605 ' + kills + ' destroyed', 559, 9);
+
+  // ─ Controls hint — bottom strip ────────────────────────────
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.fillRect(0, 348, 640, 12);
+  ctx.font = '9px ' + FONT;
+  ctx.textBaseline = 'top';
+  ctx.fillStyle = 'rgba(255,255,255,0.75)';
+  ctx.fillText('WASD / ←→↑↓ fly   SHIFT turbo   SPACE / click laser', 8, 350);
+
+  if (gameOver) {
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.72)';
+    ctx.fillRect(0, 0, 640, 360);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 34px ' + FONT;
+    ctx.fillText('GAME OVER', 320, 155);
+    ctx.font = '16px ' + FONT;
+    ctx.fillText(player.hp <= 0 ? 'The hero has fallen.' : 'The city has fallen.', 320, 198);
+    ctx.textAlign = 'left';
+  }
+}
+
+function drawBar(x, y, w, h, fraction, color, label) {
+  const value = Math.max(0, Math.min(1, fraction));
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+  ctx.fillRect(x - 1, y - 1, w + 2, h + 2);
+  ctx.fillStyle = '#343440';
+  ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y, w * value, h);
+  ctx.fillStyle = '#fff';
+  ctx.font = '10px ' + FONT;
+  ctx.textBaseline = 'bottom';
+  ctx.fillText(label, x, y - 2);
+}
 function drawCity() {
   ctx.fillStyle = '#6f7fa3';
   for (const b of farBuildings) {
@@ -60,6 +210,22 @@ function drawCity() {
     drawProp(p);
   }
   if (cityMeteor) drawMeteor(cityMeteor);
+
+  // Doctor NPC — visible during intro and whenever streetDoc is defined
+  if (typeof streetDoc !== 'undefined' && scene === 'city') {
+    const docImg = art.doc;
+    const dx = Math.round(streetDoc.x);
+    const dy = Math.round(streetDoc.y);
+    if (docImg) {
+      ctx.drawImage(docImg, dx - Math.round(docImg.width / 2), dy - docImg.height);
+    } else {
+      // Fallback: simple figure
+      ctx.fillStyle = '#e8e4d4';
+      ctx.fillRect(dx - 5, dy - 24, 10, 24);
+      ctx.fillStyle = '#e8b894';
+      ctx.fillRect(dx - 4, dy - 32, 8, 8);
+    }
+  }
 }
 
 function drawProp(p) {
@@ -207,22 +373,55 @@ function drawPlayer() {
   if (p.beam) {
     const ox = p.x;
     const oy = p.y + EYE_Y;
-    ctx.lineCap = 'butt';
-    ctx.strokeStyle = '#ff3b3b';
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.moveTo(ox, oy);
-    ctx.lineTo(p.bx, p.by);
-    ctx.stroke();
-    ctx.strokeStyle = '#fff';
+    const bx = p.bx;
+    const by = p.by;
+    const t = performance.now();
+    const pulse = 0.7 + 0.3 * Math.sin(t * 0.04); // slow width pulse
+
+    ctx.save();
+    ctx.lineCap = 'round';
+
+    // Layer 1: wide outer glow
+    ctx.strokeStyle = 'rgba(255, 40, 40, 0.18)';
+    ctx.lineWidth = 14 * pulse;
+    ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(bx, by); ctx.stroke();
+
+    // Layer 2: mid glow
+    ctx.strokeStyle = 'rgba(255, 80, 80, 0.45)';
+    ctx.lineWidth = 6 * pulse;
+    ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(bx, by); ctx.stroke();
+
+    // Layer 3: bright core
+    ctx.strokeStyle = '#ff4444';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(bx, by); ctx.stroke();
+
+    // Layer 4: white hot centre
+    ctx.strokeStyle = 'rgba(255,230,230,0.9)';
     ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(ox, oy);
-    ctx.lineTo(p.bx, p.by);
-    ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(bx, by); ctx.stroke();
+
+    // Impact burst at hit point
+    const ir = 4 + Math.random() * 4;
     ctx.fillStyle = '#ffd23f';
-    const r = 3 + Math.random() * 2;
-    ctx.fillRect(Math.round(p.bx - r), Math.round(p.by - r), r * 2, r * 2);
+    ctx.shadowColor = '#ff8800';
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.arc(Math.round(bx), Math.round(by), ir, 0, Math.PI * 2);
+    ctx.fill();
+    // Spark lines radiating out
+    ctx.strokeStyle = '#ffaa00';
+    ctx.lineWidth = 1.5;
+    for (let s = 0; s < 4; s++) {
+      const ang = t * 0.005 + s * Math.PI / 2;
+      const sr = ir + 2 + Math.random() * 5;
+      ctx.beginPath();
+      ctx.moveTo(bx + Math.cos(ang) * ir, by + Math.sin(ang) * ir);
+      ctx.lineTo(bx + Math.cos(ang) * sr, by + Math.sin(ang) * sr);
+      ctx.stroke();
+    }
+    ctx.shadowBlur = 0;
+    ctx.restore();
   }
 }
 
