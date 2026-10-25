@@ -1,4 +1,4 @@
-# I'M JUST A LITTLE GUY!
+# LITTLE HERO!!
 
 A small hero, a big alien invasion, and one city that needs protecting. Fight through invasion waves, keep the buildings standing, and try not to get bonked.
 made for Jame Gam entry by huzaifa
