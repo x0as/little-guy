@@ -1,13 +1,36 @@
-# I'M JUST A LITTLE GUY!!!!
+# I'M JUST A LITTLE GUY!
 
-Jame Gam entry. about a human superhero a little one i guess made by huzaifa
+A small hero, a big alien invasion, and one city that needs protecting. Fight through invasion waves, keep the buildings standing, and try not to get bonked.
+made for Jame Gam entry by huzaifa
+## How to play
 
-WASD / arrows to fly, hold SPACE or click to fire a laser at the cursor, 1 2 3 to switch powers and hold shift to super fly.
+Open `index.html` in a modern web browser and press **PLAY GAME**. No installation is needed.
+or play here= https://little-guy-one.vercel.app
+## Controls
 
-Plain HTML canvas + JS, no build step. Open `index.html`, or serve the folder
-(`python3 -m http.server`) if your browser is picky about local files.
+- **WASD** or **Arrow keys:** Fly
+- **Shift:** Turbo fly
+- **1–5:** Select a power
+- **Click** or **Space:** Use the selected power
+- **Enter:** Advance dialogue
+- **SFX button:** Mute or unmute sounds
 
-Add `?skip` to the url to skip the intro while testing.
+## Powers
 
+- **Laser:** Damage aliens, UFOs, and buildings
+- **Healing ray:** Repair buildings
+- **Backup:** Call a helicopter carrying allies. 30-second cooldown
+- **Shield:** Block damage for a short time. 14-second cooldown
+- **EMP:** Knock nearby UFOs down and freeze them. 30-second cooldown
+
+## Alien types
+
+- **Ground aliens:** Move through the city and attack nearby targets.
+- **Chasers:** Pursue the player. Some waves bring faster, tougher hunters.
+- **Strikers:** Hover overhead and fire aimed volleys.
+- **Landers:** Descend to the ground and release ground aliens.
+- **Mothership:** Sends in UFOs and attacks with purple lasers in later waves.
+- 
+Protect the city for as long as you can!
 ## Art
-Mostly Pixel art made by my self the rest is vectors.
+Mostly Pixel art made by my teammate the rest is vectors made by my self.
