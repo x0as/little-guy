@@ -1,4 +1,4 @@
-const DOC_NAME = 'Dr. Whozaifa';
+const DOC_NAME = 'Dr. Daniel';
 const streetDoc = { x: 300, y: FLOOR };
 let cityMeteor = null;
 
@@ -15,16 +15,18 @@ async function runIntro() {
   await wait(500);
   await tween(streetDoc, { x: player.x + 42 }, 1200, 'inOutQuad');
 
-  await say('', "There's an alien invasion! And meteors are falling!");
-  await say('', "I'm just a little guy! What can I do?!");
-  await say(DOC_NAME, '...Are you?');
+  await say('', 'Meteors are falling! The whole city is in danger!');
+  await say('', "I'm just a little guy. I can't fight an alien invasion!");
+  await say(DOC_NAME, 'I made that suit for you, Huzaifa. Now you need to trust yourself.');
 
   await tween(flash, { a: 1 }, 250);
   player.form = 'super';
   shake(5, 300);
   await tween(flash, { a: 0 }, 500);
 
-  await say('', '...Huh. Not so little anymore.');
+  await say('', 'I can fly! Okay, I can work with this.');
+  await say(DOC_NAME, 'I built five powers into that suit. Press 1 for laser, 2 for the healing ray, 3 for backup, 4 for shield, or 5 for EMP.');
+  await say(DOC_NAME, 'Click or press Space to use a power. The healing ray repairs buildings, backup calls allies, the shield blocks damage, and EMP knocks nearby UFOs down.');
 
   cam.follow = true;
   await tween(player, { y: 180 }, 700, 'inExpo');
@@ -34,8 +36,8 @@ async function runIntro() {
   enterFree();
 
   await wait(400);
-  await say(DOC_NAME, 'The mothership is to the RIGHT \u2014 fly toward it!');
-  await say(DOC_NAME, 'Its scouts are already swarming the city. Go, go, GO!');
+  await say(DOC_NAME, 'The mothership is to the right. Fly toward it and protect the city.');
+  await say(DOC_NAME, 'Its scouts are closing in. Use your powers and keep those buildings standing.');
 
   await tween(streetDoc, { x: -80 }, 1400, 'inOutQuad');
 }
@@ -62,9 +64,10 @@ async function meteorBit() {
 
   cityMeteor = null;
   shake(8, 600);
+  playSound('rocketBoom');
   await tween(flash, { a: 0.8 }, 80);
   await tween(flash, { a: 0 }, 800);
-  await say('', '...I could get used to this.');
+  await say('', 'I actually stopped a meteor. Maybe I can do this.');
 }
 
 function enterFree() {

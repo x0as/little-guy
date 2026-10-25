@@ -13,7 +13,7 @@ const ALIEN_HEALTH = 40;
 const ENEMY_SHOT_DAMAGE = 8;
 const ENEMY_SHOT_SPEED = 190;
 const ENEMY_ATTACK_INTERVAL = 1.8;
-const UFO_SPAWN_INTERVAL = 4.0;
+const UFO_SPAWN_INTERVAL = 7.5;
 const WAVE_DURATION = 90;
 const ALLY_HEALTH = 30;
 const ALLY_SHOT_DAMAGE = 5;
@@ -36,15 +36,14 @@ const fallingMeteors = [];
 let meteorSpawnTimer = 0;
 let meteorsActive = false;
 
-let collapseTimer = 0;
 let reinforcementCooldown = 0;
 
 const mothershipPhrases = [
-  "That thing's way too massive... gotta protect the people!",
-  "Super or not, I'm still just a little guy... focus on the city!",
-  "No way I can take that beast down... better save who I can!",
-  "Way above my league... time to protect what matters!",
-  "Even heroes know when to pick their battles!",
+  "That mothership is way too massive for me. I have to protect the people!",
+  "I'm still just a little guy. That mothership is out of my league!",
+  "I can't take down the mothership alone, but I can save the city!",
+  "The mothership is way above my league. Time to protect what matters!",
+  "I'm no match for the mothership yet. I have to protect the city!",
 ];
 
 function mulberry(seed) {
@@ -72,7 +71,7 @@ function buildCity() {
     x += w + range(0, 12);
   }
 
-  x = 80;
+  x = 330;
   while (x < WORLD_W - 80) {
     const img = pickArt('building_', 6);
     const w = img ? img.width : range(54, 110);
@@ -86,6 +85,17 @@ function buildCity() {
     });
     x += w + range(6, 30);
   }
+
+  props.push({
+    kind: 'building', isLab: true, x: 220, y: GROUND, w: 140, h: 190,
+    color: '#315064', hp: 2.8, maxHp: 2.8,
+    seed: 3, flash: 0, shake: 0, healFlash: 0,
+  });
+
+  const buildings = props.filter(p => p.kind === 'building');
+  const share = buildings.length ? CITY_MAX_HEALTH / buildings.length : 0;
+  for (const p of buildings) p.cityShare = share;
+  syncCityHealth();
 
   const carCounts = new Map();
   x = 120;
@@ -106,7 +116,7 @@ function buildCity() {
 
     if (img) {
       carCounts.set(carKey, (carCounts.get(carKey) || 0) + 1);
-      const scale = 0.15;
+      const scale = 0.18;
       props.push({
         kind: 'car', x, y: ROAD - 18, w: img.width * scale, h: img.height * scale,
         img, color: pick(carColors), hp: 0.4, maxHp: 0.4, seed: 0, flash: 0, shake: 0, healFlash: 0,
@@ -114,6 +124,15 @@ function buildCity() {
     }
     x += range(240, 420);
   }
+}
+
+function syncCityHealth() {
+  let remaining = 0;
+  for (const p of props) {
+    if (p.kind !== 'building' || !p.cityShare) continue;
+    remaining += p.cityShare * Math.max(0, Math.min(1, p.hp / p.maxHp));
+  }
+  cityHealth = Math.max(0, Math.min(CITY_MAX_HEALTH, remaining));
 }
 
 function propAt(px, py) {
@@ -127,10 +146,11 @@ function propAt(px, py) {
 
 function hurtProp(p, dt) {
   if (p.collapsing !== undefined) return;
-  p.hp -= dt;
+  p.hp = Math.max(0, p.hp - dt);
   p.flash = 0.06;
   p.shake = (Math.random() - 0.5) * 2;
   if (p.hp <= 0) breakProp(p);
+  else if (p.kind === 'building') syncCityHealth();
 }
 
 function healProp(p, dt) {
@@ -138,6 +158,7 @@ function healProp(p, dt) {
   if (p.kind !== 'building') return;
   p.hp = Math.min(p.maxHp, p.hp + dt * 0.4);
   p.healFlash = 0.06;
+  syncCityHealth();
 }
 
 function breakProp(p) {
@@ -145,6 +166,8 @@ function breakProp(p) {
     if (p.collapsing !== undefined) return;
     p.collapsing = 0;
     p.hp = 0;
+    playSound('sonicBoom');
+    syncCityHealth();
     return;
   }
 
@@ -200,11 +223,29 @@ function updateProps(dt) {
       p.healFlash -= dt;
       if (p.healFlash <= 0) p.healFlash = 0;
     }
+
+    if (p.kind === 'building' && p.collapsing === undefined && p.hp / p.maxHp <= 0.45) {
+      p.damageSmokeTimer = (p.damageSmokeTimer || 0) - dt;
+      if (p.damageSmokeTimer <= 0) {
+        p.damageSmokeTimer = 0.32 + Math.random() * 0.2;
+        smokeParticles.push({
+          x: p.x + (Math.random() - 0.5) * p.w * 0.45,
+          y: p.y - p.h - 2,
+          vx: (Math.random() - 0.5) * 8,
+          vy: -18 - Math.random() * 16,
+          size: 3 + Math.random() * 3,
+          life: 1.1,
+          maxLife: 1.1,
+          color: '#55545a',
+        });
+      }
+    }
   }
 }
 
 function startNextWave() {
   invasionWave++;
+  playSound('wave');
   waveTimer = WAVE_DURATION;
   mothershipMsgShown = false;
   mothership = {
@@ -216,21 +257,49 @@ function startNextWave() {
     hp: 1,
     maxHp: 1,
     ufoTimer: 1.0,
+    laserTimer: invasionWave >= 2 ? 3 + Math.random() * 2 : 4 + Math.random() * 2,
   };
+}
+
+function fireMothershipLaser() {
+  if (!mothership) return;
+  const x = mothership.x - mothership.w * 0.42;
+  const y = mothership.y + mothership.h * 0.68;
+  const dx = player.x - x;
+  const dy = player.y - 15 - y;
+  const len = Math.hypot(dx, dy) || 1;
+  const speed = 340;
+  enemyProjectiles.push({
+    x, y,
+    vx: dx / len * speed,
+    vy: dy / len * speed,
+    damage: 14,
+    kind: 'mothershipLaser',
+    life: 8,
+  });
 }
 
 function spawnUfo() {
   if (!mothership) return;
   const sx = mothership.x - mothership.w * 0.45 + Math.random() * mothership.w * 0.3;
   const sy = mothership.y + mothership.h * 0.72;
-  const role = Math.random() < 0.35 ? 'chaser' : 'lander';
+  const roll = Math.random();
+  const role = roll < 0.3 ? 'chaser' : roll < 0.55 ? 'striker' : 'lander';
+  const hunterChance = Math.min(0.6, 0.28 + invasionWave * 0.025);
+  const hunter = role === 'chaser' && Math.random() < hunterChance;
+  const variant = hunter ? 'hunter' : role === 'striker' ? 'striker' : 'standard';
+  const standardHealth = UFO_HEALTH + Math.max(0, invasionWave - 1) * 8;
+  const hunterHealth = standardHealth + 60 + invasionWave * 12;
   enemies.push({
-    kind: 'ufo', role, x: sx, y: sy,
-    w: 54, h: 30,
-    hp: UFO_HEALTH, maxHp: UFO_HEALTH,
-    vx: -60 - Math.random() * 40,
+    kind: 'ufo', role, variant, x: sx, y: sy,
+    w: hunter ? 70 : role === 'striker' ? 60 : 54,
+    h: hunter ? 41 : role === 'striker' ? 34 : 30,
+    hp: hunter ? hunterHealth : standardHealth, maxHp: hunter ? hunterHealth : standardHealth,
+    vx: role === 'striker' ? (Math.random() < 0.5 ? -1 : 1) * 65 : -60 - Math.random() * 40,
     vy: 20,
     attackTimer: 1.5 + Math.random(),
+    strikeTimer: 2.5 + Math.random() * 2,
+    windup: 0,
     phase: Math.random() * Math.PI * 2,
     landTimer: 0, hasDropped: false,
   });
@@ -246,14 +315,23 @@ function spawnReinforcementUfo() {
     sx = Math.random() * WORLD_W;
     sy = -300 - Math.random() * 200;
   }
-  const role = Math.random() < 0.3 ? 'chaser' : 'lander';
+  const roll = Math.random();
+  const role = roll < 0.28 ? 'chaser' : roll < 0.53 ? 'striker' : 'lander';
+  const hunterChance = Math.min(0.6, 0.28 + invasionWave * 0.025);
+  const hunter = role === 'chaser' && Math.random() < hunterChance;
+  const variant = hunter ? 'hunter' : role === 'striker' ? 'striker' : 'standard';
+  const standardHealth = UFO_HEALTH + Math.max(0, invasionWave - 1) * 8;
+  const hunterHealth = standardHealth + 60 + invasionWave * 12;
   enemies.push({
-    kind: 'ufo', role, x: sx, y: sy,
-    w: 54, h: 30,
-    hp: UFO_HEALTH, maxHp: UFO_HEALTH,
-    vx: (Math.random() - 0.5) * 80,
+    kind: 'ufo', role, variant, x: sx, y: sy,
+    w: hunter ? 70 : role === 'striker' ? 60 : 54,
+    h: hunter ? 41 : role === 'striker' ? 34 : 30,
+    hp: hunter ? hunterHealth : standardHealth, maxHp: hunter ? hunterHealth : standardHealth,
+    vx: role === 'striker' ? (Math.random() < 0.5 ? -1 : 1) * 65 : (Math.random() - 0.5) * 80,
     vy: 40 + Math.random() * 30,
     attackTimer: 2 + Math.random() * 2,
+    strikeTimer: 2.5 + Math.random() * 2,
+    windup: 0,
     phase: Math.random() * Math.PI * 2,
     landTimer: 0, hasDropped: false,
   });
@@ -290,6 +368,8 @@ function spawnHelicopter(targetX) {
     state: 'entering',
     dropCount: 0, maxDrops: 5,
     dropTimer: 0,
+    sound: null,
+    soundStarted: false,
     groundY: GROUND - 18,
     dropOrder: ['soldier', 'soldier', 'healer', 'rocketeer', 'soldier'],
   });
@@ -339,27 +419,7 @@ function fireAllyProjectile(x, y, tx, ty) {
   });
 }
 
-function updateCityCollapse(dt) {
-  const ratio = cityHealth / CITY_MAX_HEALTH;
-  if (ratio >= 0.99) { collapseTimer = 0; return; }
-
-  const interval = 1 + ratio * 6;
-  collapseTimer -= dt;
-  if (collapseTimer > 0) return;
-  collapseTimer = interval;
-
-  const count = Math.ceil((1 - ratio) * 3);
-  const buildings = props.filter(p => p.kind === 'building' && p.collapsing === undefined);
-  for (let i = 0; i < Math.min(count, buildings.length); i++) {
-    const idx = Math.floor(Math.random() * buildings.length);
-    breakProp(buildings[idx]);
-    buildings.splice(idx, 1);
-  }
-}
-
 function updateInvasion(dt) {
-  updateCityCollapse(dt);
-
   if (!mothership) {
     if (enemies.length === 0) startNextWave();
     updateEnemyProjectiles(dt);
@@ -400,9 +460,18 @@ function updateInvasion(dt) {
 
   mothership.ufoTimer -= dt;
   if (mothership.ufoTimer <= 0) {
-    const batch = invasionWave >= 3 ? (Math.random() < 0.3 ? 2 : 1) : 1;
+    const batch = Math.min(7, 2 + Math.floor((invasionWave - 1) / 2) + Math.floor(Math.random() * 2));
     for (let b = 0; b < batch; b++) spawnUfo();
     mothership.ufoTimer = spawnInterval;
+  }
+
+  if (invasionWave >= 2) {
+    mothership.laserTimer -= dt;
+    if (mothership.laserTimer <= 0) {
+      fireMothershipLaser();
+      const wavePressure = Math.min(1.5, (invasionWave - 2) * 0.25);
+      mothership.laserTimer = 5.5 - wavePressure + Math.random() * 2;
+    }
   }
 
   reinforcementCooldown -= dt;
@@ -445,11 +514,31 @@ function updateEnemies(dt) {
 }
 
 function updateUfo(e, dt) {
+  if (e.empStun > 0) {
+    e.empStun = Math.max(0, e.empStun - dt);
+    e.vx = 0;
+    e.vy = 0;
+    if (e.empDropping) {
+      const groundY = GROUND - e.h / 2 - 5;
+      e.empVy = (e.empVy || 0) + 420 * dt;
+      e.y = Math.min(groundY, e.y + e.empVy * dt);
+      if (e.y >= groundY) {
+        e.y = groundY;
+        e.empDropping = false;
+        if (e.role === 'lander') {
+          e.hasDropped = true;
+          e.landTimer = 0.5;
+        }
+      }
+    }
+    return;
+  }
+
   if (e.role === 'chaser') {
     const dx = player.x - e.x;
     const dy = (player.y - 20) - e.y;
     const dist = Math.hypot(dx, dy) || 1;
-    const spd = 110 + invasionWave * 10;
+    const spd = (e.variant === 'hunter' ? 205 : 110) + invasionWave * (e.variant === 'hunter' ? 16 : 10);
     e.vx += (dx / dist * spd - e.vx) * Math.min(1, dt * 3);
     e.vy += (dy / dist * spd - e.vy) * Math.min(1, dt * 3);
     e.x += e.vx * dt;
@@ -464,10 +553,25 @@ function updateUfo(e, dt) {
     e.attackTimer -= dt;
     if (e.attackTimer <= 0) {
       fireEnemyProjectile(e.x, e.y + e.h / 2, 'ufo');
-      e.attackTimer = Math.max(0.8, ENEMY_ATTACK_INTERVAL - invasionWave * 0.1);
+      e.attackTimer = Math.max(0.55, ENEMY_ATTACK_INTERVAL - invasionWave * (e.variant === 'hunter' ? 0.12 : 0.1));
     }
 
     if (e.x < -200 || e.x > WORLD_W + 200 || e.y > GROUND + 200) e.hp = 0;
+  } else if (e.role === 'striker') {
+    e.x += e.vx * dt;
+    if (e.x < 80 || e.x > WORLD_W - 80) e.vx *= -1;
+    e.y = 86 + Math.sin(e.phase * 1.8) * 12;
+
+    if (e.windup > 0) {
+      e.windup -= dt;
+      if (e.windup <= 0) {
+        fireStrikerVolley(e);
+        e.strikeTimer = Math.max(1.8, 4.2 - invasionWave * 0.12);
+      }
+    } else {
+      e.strikeTimer -= dt;
+      if (e.strikeTimer <= 0) e.windup = 0.75;
+    }
   } else {
     const targetY = GROUND - e.h / 2 - 5;
     if (e.y < targetY) {
@@ -489,6 +593,39 @@ function updateUfo(e, dt) {
       if (e.landTimer <= 0) e.hp = 0;
     }
   }
+}
+
+function fireStrikerVolley(e) {
+  const target = getStrikerTarget(e);
+  const dx = target.x - e.x;
+  const dy = target.y - e.y;
+  const angle = Math.atan2(dy, dx);
+  const speed = 230;
+  for (const spread of [-0.2, 0, 0.2]) {
+    const shotAngle = angle + spread;
+    enemyProjectiles.push({
+      x: e.x, y: e.y + e.h / 2,
+      vx: Math.cos(shotAngle) * speed,
+      vy: Math.sin(shotAngle) * speed,
+      damage: 12,
+      kind: 'striker',
+      life: 5,
+    });
+  }
+}
+
+function getStrikerTarget(e) {
+  let target = { x: player.x, y: player.y - 15 };
+  let nearest = Math.hypot(target.x - e.x, target.y - e.y);
+  for (const ally of allies) {
+    if (ally.hp <= 0) continue;
+    const distance = Math.hypot(ally.x - e.x, ally.y - 10 - e.y);
+    if (distance < nearest) {
+      nearest = distance;
+      target = { x: ally.x, y: ally.y - 10 };
+    }
+  }
+  return target;
 }
 
 function updateAlien(e, dt) {
@@ -573,7 +710,8 @@ function updateEnemyProjectiles(dt) {
     p.y += p.vy * dt;
     p.life -= dt;
 
-    if (Math.hypot(p.x - player.x, p.y - (player.y - 15)) < 18) {
+    const playerHitRadius = p.kind === 'striker' ? 26 : 18;
+    if (Math.hypot(p.x - player.x, p.y - (player.y - 15)) < playerHitRadius) {
       damagePlayer(p.damage);
       enemyProjectiles.splice(i, 1);
       continue;
@@ -596,7 +734,6 @@ function updateEnemyProjectiles(dt) {
     if (hit) continue;
 
     if (p.y >= GROUND) {
-      cityHealth = Math.max(0, cityHealth - p.damage);
       enemyProjectiles.splice(i, 1);
       continue;
     }
@@ -632,11 +769,10 @@ function updateAllies(dt) {
 
 function updateSoldierAlly(a, dt) {
   let target = null;
-  let targetDist = 600;
+  let targetDist = 650;
 
   for (const e of enemies) {
-    if (e.kind !== 'alien') continue;
-    const d = Math.abs(e.x - a.x);
+    const d = Math.hypot(e.x - a.x, (e.y - e.h / 2) - (a.y - 10));
     if (d < targetDist) { target = e; targetDist = d; }
   }
 
@@ -681,7 +817,6 @@ function updateHealerAlly(a, dt) {
       if (a.healTimer >= 0.3) {
         a.healTimer = 0;
         healProp(target, 0.8);
-        cityHealth = Math.min(CITY_MAX_HEALTH, cityHealth + 0.5);
       }
     }
   } else {
@@ -747,6 +882,7 @@ function patrolAlly(a) {
 }
 
 function fireRocket(x, y, target) {
+  playSound('rocketTakeoff');
   const dx = target.x - x;
   const dy = target.y - y;
   const len = Math.hypot(dx, dy) || 1;
@@ -756,7 +892,7 @@ function fireRocket(x, y, target) {
     vx: dx / len * speed,
     vy: dy / len * speed,
     target,
-    damage: 35,
+    damage: 60,
     life: 6,
     age: 0,
     trail: [],
@@ -820,6 +956,7 @@ function updateRockets(dt) {
       const e = enemies[j];
       if (Math.hypot(r.x - e.x, r.y - (e.y - e.h / 2)) < 20) {
         e.hp -= r.damage;
+        playSound('rocketBoom');
         // Explosion effect
         burst(r.x, r.y, '#ff6622', 25, 140, 100);
         burst(r.x, r.y, '#ffcc33', 15, 80, 60);
@@ -924,8 +1061,19 @@ function updateHelicopters(dt) {
     } else if (h.state === 'leaving') {
       h.x += 180 * dt;
       if (h.x > WORLD_W + 200) {
+        stopSound(h.sound);
         helicopters.splice(i, 1);
       }
+    }
+
+    const onScreen = h.x >= cam.x - 60 && h.x <= cam.x + 700;
+    if (onScreen && !h.soundStarted) {
+      h.sound = playSound('helicopter');
+      h.soundStarted = true;
+    } else if (!onScreen && h.soundStarted && h.sound) {
+      stopSound(h.sound);
+      h.sound = null;
+      h.soundStarted = false;
     }
   }
 }
@@ -936,23 +1084,46 @@ function updateMeteors(dt) {
   meteorSpawnTimer -= dt;
   if (meteorSpawnTimer <= 0) {
     spawnFallingMeteor();
-    meteorSpawnTimer = 4 + Math.random() * 5;
+    meteorSpawnTimer = 7 + Math.random() * 6;
   }
 
   for (let i = fallingMeteors.length - 1; i >= 0; i--) {
     const m = fallingMeteors[i];
     m.x += m.vx * dt;
     m.y += m.vy * dt;
-    m.vy += 55 * dt;
+    m.vy += 32 * dt;
+
+    const hitTargets = m.hitTargets;
+    if (!hitTargets.has(player) && Math.hypot(m.x - player.x, m.y - (player.y - 15)) < m.r * m.s + 10) {
+      hitTargets.add(player);
+      damagePlayer(18);
+      burst(m.x, m.y, '#ffb14c', 8, 55, 35);
+    }
+
+    for (const e of enemies) {
+      const targetY = e.kind === 'alien' ? e.y - e.h / 2 : e.y;
+      if (!hitTargets.has(e) && Math.hypot(m.x - e.x, m.y - targetY) < m.r * m.s + Math.max(e.w, e.h) * 0.35) {
+        hitTargets.add(e);
+        e.hp -= 35;
+        burst(m.x, m.y, '#ffb14c', 8, 55, 35);
+      }
+    }
+
+    for (const a of allies) {
+      if (!hitTargets.has(a) && Math.hypot(m.x - a.x, m.y - (a.y - 10)) < m.r * m.s + 10) {
+        hitTargets.add(a);
+        a.hp -= 20;
+        burst(m.x, m.y, '#ffb14c', 8, 55, 35);
+      }
+    }
 
     if (m.y >= GROUND - m.r) {
-      cityHealth = Math.max(0, cityHealth - 6);
       shake(4, 300);
       burst(m.x, GROUND, '#ff6633', 20, 120, 80);
       for (const p of props) {
         if (p.kind === 'building' && p.collapsing === undefined &&
             Math.abs(p.x - m.x) < p.w / 2 + m.r * 2) {
-          hurtProp(p, 0.4);
+          hurtProp(p, 0.8);
         }
       }
       fallingMeteors.splice(i, 1);
@@ -972,11 +1143,12 @@ function spawnFallingMeteor() {
   fallingMeteors.push({
     x: x + (Math.random() - 0.5) * 200,
     y: -100 - Math.random() * 200,
-    vx: (Math.random() - 0.5) * 30,
-    vy: 50 + Math.random() * 30,
+    vx: -48 - Math.random() * 35,
+    vy: 48 + Math.random() * 22,
     r: 14 + Math.random() * 8,
     s: 1.5 + Math.random(),
-    hp: 120,
-    maxHp: 120,
+    hp: 190,
+    maxHp: 190,
+    hitTargets: new Set(),
   });
 }

@@ -10,6 +10,14 @@ const player = {
   power: 'laser',
   backupCooldown: 0,
   backupFiring: false,
+  shieldTime: 0,
+  shieldCooldown: 0,
+  shieldFiring: false,
+  empCooldown: 0,
+  empFiring: false,
+  empPulseTime: 0,
+  turboDirectionX: 0,
+  turboDirectionY: 0,
 };
 
 const FLY_SPEED = 220;
@@ -22,9 +30,11 @@ const PLAYER_REGEN_DELAY = 3;
 const PLAYER_REGEN_RATE = 8;
 const PLAYER_BEAM_DAMAGE = 30;
 const PLAYER_BEAM_HIT_INTERVAL = 0.2;
+const sonicBoomParticles = [];
 
 function damagePlayer(amount) {
   if (gameOver) return;
+  if (player.shieldTime > 0) return;
   player.hp = Math.max(0, player.hp - amount);
   player.damageTime = player.t;
 }
@@ -34,6 +44,10 @@ function updatePlayer(dt) {
   player.beam = false;
 
   if (player.backupCooldown > 0) player.backupCooldown -= dt;
+  if (player.shieldCooldown > 0) player.shieldCooldown -= dt;
+  if (player.shieldTime > 0) player.shieldTime = Math.max(0, player.shieldTime - dt);
+  if (player.empCooldown > 0) player.empCooldown -= dt;
+  if (player.empPulseTime > 0) player.empPulseTime = Math.max(0, player.empPulseTime - dt);
 
   if (player.hp < player.maxHp &&
     player.t - player.damageTime >= PLAYER_REGEN_DELAY) {
@@ -48,6 +62,7 @@ function updatePlayer(dt) {
 
   const firing = !!(keys.Space || mouse.down);
   const shiftHeld = !!(keys.ShiftLeft || keys.ShiftRight || keys.Shift);
+  const turboStarted = shiftHeld && !player.superFly;
   player.superFly = shiftHeld;
   player.flyPose = player.superFly ? 'sideways' : 'normal';
 
@@ -67,11 +82,47 @@ function updatePlayer(dt) {
   player.x = Math.max(20, Math.min(WORLD_W - 20, player.x + player.vx * dt));
   player.y = Math.max(-380, Math.min(340, player.y + player.vy * dt));
 
-  if (player.power === 'backup') {
+  const moving = dx !== 0 || dy !== 0;
+  const directionX = Math.sign(dx);
+  const directionY = Math.sign(dy);
+  const hasPreviousTurboDirection = player.turboDirectionX !== 0 || player.turboDirectionY !== 0;
+  const directionChanged = hasPreviousTurboDirection &&
+    (directionX !== player.turboDirectionX || directionY !== player.turboDirectionY);
+  const startedMovingTurbo = shiftHeld && moving && !hasPreviousTurboDirection;
+
+  if (shiftHeld && moving && (turboStarted || startedMovingTurbo || directionChanged)) {
+    spawnSonicBoom(player.x, player.y - 10, Math.abs(dy) > Math.abs(dx));
+  }
+  if (shiftHeld && moving) {
+    player.turboDirectionX = directionX;
+    player.turboDirectionY = directionY;
+  } else if (!shiftHeld) {
+    player.turboDirectionX = 0;
+    player.turboDirectionY = 0;
+  }
+
+  if (player.power === 'emp') {
+    player.beam = false;
+    if (firing && !player.empFiring && player.empCooldown <= 0) {
+      triggerEmpPulse();
+      player.empCooldown = 30;
+    }
+    player.empFiring = firing;
+    if (Math.abs(player.vx) > 10) player.facing = player.vx > 0 ? 1 : -1;
+  } else if (player.power === 'shield') {
+    player.beam = false;
+    if (firing && !player.shieldFiring && player.shieldCooldown <= 0) {
+      player.shieldTime = 2.5;
+      player.shieldCooldown = 14;
+    }
+    player.shieldFiring = firing;
+    player.backupFiring = firing;
+    if (Math.abs(player.vx) > 10) player.facing = player.vx > 0 ? 1 : -1;
+  } else if (player.power === 'backup') {
     player.beam = false;
     if (firing && !player.backupFiring && player.backupCooldown <= 0) {
       spawnHelicopter(player.x);
-      player.backupCooldown = 12;
+      player.backupCooldown = 30;
     }
     player.backupFiring = firing;
     if (Math.abs(player.vx) > 10) player.facing = player.vx > 0 ? 1 : -1;
@@ -84,6 +135,37 @@ function updatePlayer(dt) {
       player.beamHitTimer = 0;
       if (Math.abs(player.vx) > 10) player.facing = player.vx > 0 ? 1 : -1;
     }
+  }
+  if (player.power !== 'shield') player.shieldFiring = false;
+  if (player.power !== 'emp') player.empFiring = false;
+}
+
+function triggerEmpPulse() {
+  const radius = 280;
+  player.empPulseTime = 0.65;
+  for (const enemy of enemies) {
+    if (enemy.kind !== 'ufo' || Math.hypot(enemy.x - player.x, enemy.y - (player.y - 15)) > radius) continue;
+    enemy.empStun = 5;
+    enemy.empDropping = true;
+    enemy.empVy = 0;
+    enemy.windup = 0;
+    burst(enemy.x, enemy.y, '#7deaff', 12, 80, 55);
+  }
+  burst(player.x, player.y - 15, '#7deaff', 20, 120, 75);
+  shake(2, 140);
+}
+
+function spawnSonicBoom(x, y, horizontal) {
+  playSound('sonicBoom');
+  sonicBoomParticles.push({ x, y, radius: 8, horizontal, life: 0.35, maxLife: 0.35 });
+}
+
+function updateSonicBoomParticles(dt) {
+  for (let i = sonicBoomParticles.length - 1; i >= 0; i--) {
+    const p = sonicBoomParticles[i];
+    p.radius += 210 * dt;
+    p.life -= dt;
+    if (p.life <= 0) sonicBoomParticles.splice(i, 1);
   }
 }
 
@@ -116,9 +198,8 @@ function fireBeam(dt) {
     }
 
     if (hitProp && hitProp.kind === 'building' && hitProp.collapsing === undefined) {
-      healProp(hitProp, dt);
+      healProp(hitProp, dt * 1.25);
     }
-    cityHealth = Math.min(CITY_MAX_HEALTH, cityHealth + dt * 1.5);
     player.beamTarget = null;
     player.beamHitTimer = 0;
   } else {

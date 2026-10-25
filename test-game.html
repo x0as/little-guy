@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Test Little Guy</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #000;
+    }
+    canvas {
+      display: block;
+    }
+    #home-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100vh;
+      background: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+    }
+    #home-content {
+      text-align: center;
+      color: #fff;
+    }
+    #home-content #title {
+      font-size: 2.8em;
+      font-weight: bold;
+      letter-spacing: 4px;
+      margin-bottom: 30px;
+      text-shadow: 0 0 20px rgba(255, 210, 63, 0.5);
+    }
+    #home-content button {
+      padding: 14px 32px;
+      font-size: 1.2em;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      margin: 0 8px;
+      background: #ffd23f;
+      color: #000;
+      font-weight: bold;
+      box-shadow: 0 0 20px rgba(255, 210, 63, 0.4);
+      transition: transform 0.2s;
+    }
+    #home-content button:hover {
+      transform: scale(1.05);
+    }
+    #subtitle {
+      margin-top: 15px;
+      font-size: 0.9em;
+      color: #888;
+    }
+    #controls-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100vh;
+      background: rgba(0,0,0,0.85);
+      z-index: 1000;
+      display: none;
+      justify-content: center;
+      align-items: center;
+    }
+    #controls-modal .modal-content {
+      background: #1a1a2e;
+      padding: 30px;
+      border-radius: 12px;
+      max-width: 600px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+      color: #fff;
+    }
+    #controls-modal .close-btn {
+      background: #333;
+      color: #fff;
+      border: none;
+      padding: 5px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      position: absolute;
+      top: 10px;
+      right: 10px;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="c" width="640" height="360"></canvas>
+
+  <div id="home-screen">
+    <div id="home-content">
+      <div id="title">I'M JUST A LITTLE GUY!!!!</div>
+      <button id="play-btn">PLAY GAME</button>
+      <button id="controls-btn">CONTROLS & POWERS</button>
+      <p id="subtitle">Click PLAY to start the game</p>
+    </div>
+  </div>
+
+  <div id="controls-modal">
+    <div class="modal-content">
+      <button class="close-btn" id="close-controls-btn">✕</button>
+      <h2>Controls & Powers</h2>
+      <div><strong>Movement:</strong> WASD or Arrow Keys to fly around</div>
+      <div><strong>SHIFT / Turbo:</strong> Hold to activate turbo boost & sonic boom</div>
+      <div><strong>Click / SPACE:</strong> Fire laser beam from eyes</div>
+      <div><strong>Power 1 - Laser:</strong> Beam with click, fires from eyes</div>
+      <div><strong>Power 2 - Heal:</strong> Click in air to heal buildings</div>
+      <div><strong>Power 3 - Backup:</strong> Helicopter drops allies</div>
+      <div><strong>City HP:</strong> Total health of the city</div>
+      <div><strong>Player HP:</strong> Your health (regenerates over time)</div>
+      <div><strong>Wave Timer:</strong> Seconds left in current wave</div>
+      <div><strong>Stars:</strong> Buildings destroyed</div>
+    </div>
+  </div>
+
+  <script src="js/art.js"></script>
+  <script src="js/tween.js"></script>
+  <script src="js/world.js"></script>
+  <script src="js/player.js"></script>
+  <script src="js/dialogue.js"></script>
+  <script src="js/render.js"></script>
+  <script src="js/intro.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

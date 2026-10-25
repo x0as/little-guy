@@ -54,22 +54,24 @@ function updateDialogue(dt) {
 
 function drawDialogue() {
   if (!dlg.active) return;
+  const top = !player.control;
+  const boxY = top ? 20 : 256;
   ctx.fillStyle = '#14121f';
-  ctx.fillRect(20, 262, 600, 84);
+  ctx.fillRect(20, boxY, 600, 84);
   ctx.strokeStyle = '#fff';
   ctx.lineWidth = 2;
-  ctx.strokeRect(21, 263, 598, 82);
+  ctx.strokeRect(21, boxY + 1, 598, 82);
 
   ctx.textBaseline = 'top';
   if (dlg.who) {
     ctx.font = '11px ' + FONT;
     ctx.fillStyle = '#ffd23f';
-    ctx.fillText(dlg.who, 32, 270);
+    ctx.fillText(dlg.who, 32, boxY + 8);
   }
   ctx.font = '12px ' + FONT;
   ctx.fillStyle = '#fff';
   let left = Math.floor(dlg.shown);
-  let y = 288;
+  let y = boxY + 25;
   for (const line of dlg.lines) {
     ctx.fillText(line.slice(0, Math.max(0, left)), 32, y);
     left -= line.length;

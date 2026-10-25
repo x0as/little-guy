@@ -9,6 +9,50 @@
 <body>
   <canvas id="c" width="640" height="360"></canvas>
 
+  <!-- Home Screen -->
+  <div id="home-screen">
+    <div id="home-content">
+      <img class="menu-side-hero" src="art/player_small.png" alt="">
+      <img class="menu-side-doc" src="art/doc.png" alt="">
+      <div id="title">I'M JUST A LITTLE GUY!</div>
+      <button id="play-btn">PLAY GAME</button>
+      <button id="controls-btn">HOW TO PLAY??</button>
+      <p id="subtitle">A little guy against an alien invasion</p>
+    </div>
+  </div>
+
+  <!-- Controls Modal -->
+  <div id="controls-modal" style="display:none;">
+    <div class="controls-panel">
+      <header class="controls-header">
+        <div>
+          <p class="controls-kicker">UMM, HELP</p>
+          <h2>How do I play?</h2>
+        </div>
+        <button id="close-controls-btn" aria-label="Close controls">BACK</button>
+      </header>
+      <div class="controls-grid">
+        <section>
+          <h3>Moving n stuff</h3>
+          <p><kbd>W A S D</kbd> or <kbd>ARROWS</kbd> <span>Fly around. Try not to bonk things.</span></p>
+          <p><kbd>SHIFT</kbd> <span>Go zoom. Boom happens when you start or turn.</span></p>
+          <p><kbd>ENTER</kbd> <span>Make the talking stop / continue</span></p>
+        </section>
+        <section>
+          <h3>Press a number then click</h3>
+          <p><kbd>1</kbd> <b>Laser</b> <span>Zap the aliens n buildings.</span></p>
+          <p><kbd>2</kbd> <b>Heal</b> <span>Fix a building with the green ray.</span></p>
+          <p><kbd>3</kbd> <b>Backup</b> <span>Helicopter friends. 30 sec cooldown.</span></p>
+          <p><kbd>4</kbd> <b>Shield</b> <span>No damage for a bit. 14 sec cooldown.</span></p>
+          <p><kbd>5</kbd> <b>EMP</b> <span>Nearby UFO's fall down n freeze. Wait 30 sec.</span></p>
+          <p><kbd>CLICK</kbd> or <kbd>SPACE</kbd> <span>Use the thing you picked. I think.</span></p>
+        </section>
+      </div>
+      <p class="controls-footer">Save the city. Dont let the little guy get bonked.</p>
+    </div>
+  </div>
+
+  <script src="js/audio.js"></script>
   <script src="js/art.js"></script>
   <script src="js/tween.js"></script>
   <script src="js/world.js"></script>

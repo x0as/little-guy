@@ -10,6 +10,8 @@ let scene = 'city';
 let gameOver = false;
 let toastMsg = '';
 let toastTimer = 0;
+let gameStarted = false;
+let artReady = false;
 
 function showToast(msg, duration) {
   toastMsg = msg;
@@ -35,6 +37,9 @@ function snapCamera() {
 }
 
 function restartGame() {
+  setLoopSound('speaking', false);
+  setLoopSound('laser', false);
+  for (const helicopter of helicopters) stopSound(helicopter.sound);
   gameOver = false;
   scene = 'city';
   toastMsg = '';
@@ -61,6 +66,13 @@ function restartGame() {
   player.power = 'laser';
   player.backupCooldown = 0;
   player.backupFiring = false;
+  player.shieldTime = 0;
+  player.shieldCooldown = 0;
+  player.shieldFiring = false;
+  player.empCooldown = 0;
+  player.empFiring = false;
+  player.empPulseTime = 0;
+  sonicBoomParticles.length = 0;
 
   props.length = 0;
   farBuildings.length = 0;
@@ -80,7 +92,6 @@ function restartGame() {
   cityHealth = CITY_MAX_HEALTH;
   invasionWave = 0;
   mothership = null;
-  collapseTimer = 0;
   reinforcementCooldown = 0;
   waveTimer = 0;
   mothershipMsgShown = false;
@@ -96,7 +107,10 @@ function update(dt) {
   updatePlayer(dt);
   updateProps(dt);
   updateDebris(dt);
+  updateSonicBoomParticles(dt);
   updateDialogue(dt);
+  setLoopSound('speaking', dlg.active);
+  setLoopSound('laser', player.beam && player.power === 'laser');
 
   if (toastTimer > 0) toastTimer -= dt;
 
@@ -106,6 +120,7 @@ function update(dt) {
       gameOver = true;
       player.control = false;
       player.beam = false;
+      for (const helicopter of helicopters) stopSound(helicopter.sound);
     }
   }
 
@@ -129,11 +144,35 @@ function loop(now) {
   requestAnimationFrame(loop);
 }
 
+function beginGame() {
+  if (gameStarted || !artReady) return;
+  unlockGameAudio();
+  gameStarted = true;
+  document.getElementById('home-screen').style.display = 'none';
+  if (location.search.includes('skip')) skipIntro();
+  else runIntro();
+}
+
+document.getElementById('play-btn').addEventListener('click', beginGame);
+document.getElementById('controls-btn').addEventListener('click', () => {
+  document.getElementById('controls-modal').style.display = 'flex';
+});
+document.getElementById('close-controls-btn').addEventListener('click', () => {
+  document.getElementById('controls-modal').style.display = 'none';
+});
+
 addEventListener('keydown', e => {
   keys[e.code] = true;
   keys.Shift = e.shiftKey || e.code === 'ShiftLeft' || e.code === 'ShiftRight';
 
   if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault();
+
+  if (!gameStarted && !e.repeat && (e.code === 'Enter' || e.code === 'Space')) {
+    if (document.getElementById('controls-modal').style.display === 'flex') {
+      document.getElementById('controls-modal').style.display = 'none';
+    } else beginGame();
+    return;
+  }
 
   if (gameOver && !e.repeat && (e.code === 'Space' || e.code === 'Enter')) {
     restartGame();
@@ -145,6 +184,8 @@ addEventListener('keydown', e => {
   if (e.code === 'Digit1') player.power = 'laser';
   if (e.code === 'Digit2') player.power = 'heal';
   if (e.code === 'Digit3') player.power = 'backup';
+  if (e.code === 'Digit4') player.power = 'shield';
+  if (e.code === 'Digit5') player.power = 'emp';
 });
 
 addEventListener('keyup', e => {
@@ -161,10 +202,19 @@ canvas.addEventListener('mousemove', e => {
   const r = canvas.getBoundingClientRect();
   mouse.x = (e.clientX - r.left) / r.width * 640;
   mouse.y = (e.clientY - r.top) / r.height * 360;
+  const onMuteButton = mouse.x >= MUTE_BTN.x && mouse.x <= MUTE_BTN.x + MUTE_BTN.w &&
+    mouse.y >= MUTE_BTN.y && mouse.y <= MUTE_BTN.y + MUTE_BTN.h;
+  canvas.style.cursor = onMuteButton && (player.control || gameOver) ? 'pointer' : 'crosshair';
 });
 
 canvas.addEventListener('mousedown', () => {
   mouse.down = true;
+  if ((player.control || gameOver) && mouse.x >= MUTE_BTN.x && mouse.x <= MUTE_BTN.x + MUTE_BTN.w &&
+      mouse.y >= MUTE_BTN.y && mouse.y <= MUTE_BTN.y + MUTE_BTN.h) {
+    toggleGameMute();
+    mouse.down = false;
+    return;
+  }
   if (gameOver) {
     if (mouse.x >= PLAY_BTN.x && mouse.x <= PLAY_BTN.x + PLAY_BTN.w &&
         mouse.y >= PLAY_BTN.y && mouse.y <= PLAY_BTN.y + PLAY_BTN.h) {
@@ -180,8 +230,8 @@ addEventListener('mouseup', () => {
 });
 
 loadArt().then(() => {
+  artReady = true;
   buildCity();
-  if (location.search.includes('skip')) skipIntro();
-  else runIntro();
+  scene = 'city';
   requestAnimationFrame(loop);
 });
